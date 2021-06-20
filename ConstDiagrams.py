@@ -14,7 +14,7 @@ from keras import backend as K
 
 np.random.seed(1)
 tf.compat.v1.set_random_seed(3)
-# bu kodda aynı kanal sayısına, farklı haberleşme hızına sahip psk modülsayonları ile otokodlayıcılar karşılaştırılacaktır. (Block Error Rate)
+# bu kodda eğitilen Otokodlayıcı tarafından Öğrenilmiş İşaret Gösterilimleri (Constellation Diagrams) incelenecektir.
 
 M = 16
 k = np.log2(M)
@@ -36,16 +36,16 @@ data = np.array(data)
 
 # Autoencoder Mimarisi
 
-input = Input(shape=(M,))
-encoded1 = Dense(M, activation='relu')(input)
-encoded2 = Dense(2*n_channel, activation='linear')(encoded1)
-encoded3 = Lambda(lambda x: np.sqrt(n_channel) * K.l2_normalize(x, axis=1))(encoded2)
+input = Input(shape=(M,)) # Giriş Katmanı (1)
+encoded1 = Dense(M, activation='relu')(input) # Gizli Katman (2)
+encoded2 = Dense(2*n_channel, activation='linear')(encoded1) # Gizli Katman (3)
+encoded3 = Lambda(lambda x: np.sqrt(n_channel) * K.l2_normalize(x, axis=1))(encoded2) # Normalizasyon Katmanı (4)
 
-EbNo_train = 10**(10/10)
-encoded4 = GaussianNoise(np.sqrt(1 / (2 * R * EbNo_train)))(encoded3)
+EbNo_train = 10**(10/10) # dB'nin gerçek Eb/No değerine dönüştürülmesi
+encoded4 = GaussianNoise(np.sqrt(1 / (2 * R * EbNo_train)))(encoded3) # Gürültü Kanalı (5)
 
-decoded1 = Dense(M, activation='relu')(encoded4)
-decoded2 = Dense(M, activation='softmax')(decoded1)
+decoded1 = Dense(M, activation='relu')(encoded4) # Gizli Katman (6)
+decoded2 = Dense(M, activation='softmax')(decoded1) # Çıkış Katmanı (7)
 autoencoder = Model(input, decoded2)
 adam = Adam(lr=0.01)
 sgd = SGD(learning_rate=0.2)
@@ -58,23 +58,13 @@ print(autoencoder.summary())
 callback = keras.callbacks.EarlyStopping(monitor='val_loss',patience=10)
 autoencoder.fit(data, data, epochs=50, batch_size=32, validation_split=0.1, callbacks=[callback])
 
-encoder = Model(input, encoded3)
+encoder = Model(input, encoded3) # Mesaj işaretinin modüle edildiği kısım-Verici-Kodlayıcı
 
-encoded_input = Input(shape=(2*n_channel,))
+encoded_input = Input(shape=(2*n_channel,)) # Kodlanan İşaret
 deco1 = autoencoder.layers[-2](encoded_input)
 deco2 = autoencoder.layers[-1](deco1)
-decoder = Model(encoded_input, deco2)
+decoder = Model(encoded_input, deco2) # Mesaj işaretinin demodüle edildiği kısım-Alıcı-Kod Çözücü
 
-N_test = 50000
-test_label = np.random.randint(M, size=N_test)
-test_data = []
-
-for ii in test_label:
-    temp = np.zeros(M)
-    temp[ii] = 1
-    test_data.append(temp) # One-Hot Encoding
-
-test_data = np.array(test_data)
 
 scatter_plot = []
 for i in range(0,M):
@@ -82,6 +72,7 @@ for i in range(0,M):
     temp[i] = 1
     scatter_plot.append(encoder.predict(np.expand_dims(temp,axis=0)))
 scatter_plot = np.array(scatter_plot)
+# Modüle edilen messaj işaretinin iki boyutlu gösterilimi elde edilmiştir.
 
 
 scatter_plot = scatter_plot.reshape(M,2,1)

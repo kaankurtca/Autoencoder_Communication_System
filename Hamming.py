@@ -13,7 +13,7 @@ from keras import backend as K
 
 np.random.seed(1)
 tf.compat.v1.set_random_seed(3)
-# bu kodda aynı kanal sayısına, farklı haberleşme hızına sahip psk modülsayonları ile otokodlayıcılar karşılaştırılacaktır. (Block Error Rate)
+# bu kodda 16-PSK Otokodlayıcı performansı Hamming Code, Soft-Decision Coding ve Hard-Decision Decoding ile karşılaştırılacaktır.
 
 M = [16]
 k = np.log2(M)
@@ -41,16 +41,16 @@ for i in range(len(M)):
 
     # Autoencoder Mimarisi
 
-    input = Input(shape=(M[i],))
-    encoded1 = Dense(M[i], activation='relu')(input)
-    encoded2 = Dense(2*n_channel[i], activation='linear')(encoded1)
-    encoded3 = Lambda(lambda x: np.sqrt(n_channel[i]) * K.l2_normalize(x, axis=1))(encoded2)
+    input = Input(shape=(M[i],)) # Giriş Katmanı (1)
+    encoded1 = Dense(M[i], activation='relu')(input) # Gizli Katman (2)
+    encoded2 = Dense(2*n_channel[i], activation='linear')(encoded1) # Gizli Katman (3)
+    encoded3 = Lambda(lambda x: np.sqrt(n_channel[i]) * K.l2_normalize(x, axis=1))(encoded2) # Normalizasyon Katmanı (4)
 
-    EbNo_train = 10**(7/10)
-    encoded4 = GaussianNoise(np.sqrt(1 / (2 * R[i] * EbNo_train)))(encoded3)
+    EbNo_train = 10**(7/10) # dB'nin gerçek Eb/No değerine dönüştürülmesi
+    encoded4 = GaussianNoise(np.sqrt(1 / (2 * R[i] * EbNo_train)))(encoded3) # Gürültü Kanalı (5)
 
-    decoded1 = Dense(M[i], activation='relu')(encoded4)
-    decoded2 = Dense(M[i], activation='softmax')(decoded1)
+    decoded1 = Dense(M[i], activation='relu')(encoded4) # Gizli Katman (6)
+    decoded2 = Dense(M[i], activation='softmax')(decoded1) # Çıkış Katmanı (7)
     autoencoder = Model(input, decoded2)
     adam = Adam(lr=0.01)
     sgd = SGD(learning_rate=0.1)
@@ -60,14 +60,14 @@ for i in range(len(M)):
 
     print(autoencoder.summary())
 
-    autoencoder.fit(data, data, epochs=45, batch_size=128, validation_split=0.2)
+    autoencoder.fit(data, data, epochs=45, batch_size=128, validation_split=0.2) # Eğitim
 
-    encoder = Model(input, encoded3)
+    encoder = Model(input, encoded3) # Mesaj işaretinin modüle edildiği kısım-Verici-Kodlayıcı
 
-    encoded_input = Input(shape=(2*n_channel[i],))
+    encoded_input = Input(shape=(2*n_channel[i],)) # Kodlanan İşaret
     deco1 = autoencoder.layers[-2](encoded_input)
     deco2 = autoencoder.layers[-1](deco1)
-    decoder = Model(encoded_input, deco2)
+    decoder = Model(encoded_input, deco2) # Mesaj işaretinin demodüle edildiği kısım-Alıcı-Kod Çözücü
 
     N_test = 10000
     test_label = np.random.randint(M[i], size=N_test)
@@ -80,7 +80,7 @@ for i in range(len(M)):
 
     test_data = np.array(test_data)
 
-    SNR_db = np.arange(-5,9,1)
+    SNR_db = np.arange(-5,9,1) # Hata oranının test edileceği işaret-gürültü aralığı
     block_error_rate = [None] * len(SNR_db)
 
     for n in range(len(SNR_db)):

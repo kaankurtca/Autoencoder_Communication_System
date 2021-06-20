@@ -14,7 +14,7 @@ from keras import backend as K
 np.random.seed(1)
 tf.compat.v1.set_random_seed(3)
 # bu kodda mesaj ve kanal sayısı parametresi sabit tutularak haberleşme sistemi...
-# farklı optimizasyon algoritmaları ile gerçeklenecektir.
+# farklı eğitim-test verisi oranlarında gerçeklenecektir.
 
 M = 16
 k = np.log2(M)
@@ -42,30 +42,30 @@ for i in rates:
 
     # Autoencoder Mimarisi
 
-    input = Input(shape=(M,))
-    encoded1 = Dense(M, activation='relu')(input)
-    encoded2 = Dense(2*n_channel, activation='linear')(encoded1)
-    encoded3 = Lambda(lambda x: np.sqrt(n_channel) * K.l2_normalize(x, axis=1))(encoded2)
+    input = Input(shape=(M,)) # Giriş Katmanı (1)
+    encoded1 = Dense(M, activation='relu')(input) # Gizli Katman (2)
+    encoded2 = Dense(2*n_channel, activation='linear')(encoded1) # Gizli Katman (3)
+    encoded3 = Lambda(lambda x: np.sqrt(n_channel) * K.l2_normalize(x, axis=1))(encoded2) # Normalizasyon Katmanı (4)
 
-    EbNo_train = 10**(10/10)  # coverted 10 db of EbNo
-    encoded4 = GaussianNoise(np.sqrt(1 / (2 * R * EbNo_train)))(encoded3)
+    EbNo_train = 10**(10/10)  # cdB'nin gerçek Eb/No değerine dönüştürülmesi
+    encoded4 = GaussianNoise(np.sqrt(1 / (2 * R * EbNo_train)))(encoded3) # Gürültü Kanalı (5)
 
-    decoded1 = Dense(M, activation='relu')(encoded4)
-    decoded2 = Dense(M, activation='softmax')(decoded1)
+    decoded1 = Dense(M, activation='relu')(encoded4) # Gizli Katman (6)
+    decoded2 = Dense(M, activation='softmax')(decoded1) # Çıkış Katmanı (7)
     autoencoder = Model(input, decoded2)
 
     autoencoder.compile(optimizer=Adam(0.01), loss='categorical_crossentropy')
 
     print(autoencoder.summary())
 
-    autoencoder.fit(data, data, epochs=50, batch_size=32)
+    autoencoder.fit(data, data, epochs=50, batch_size=32) # Eğitim
 
-    encoder = Model(input, encoded3)
+    encoder = Model(input, encoded3) # Mesaj işaretinin modüle edildiği kısım-Verici-Kodlayıcı
 
-    encoded_input = Input(shape=(2*n_channel,))
+    encoded_input = Input(shape=(2*n_channel,)) # Kodlanan İşaret
     deco1 = autoencoder.layers[-2](encoded_input)
     deco2 = autoencoder.layers[-1](deco1)
-    decoder = Model(encoded_input, deco2)
+    decoder = Model(encoded_input, deco2) # Mesaj işaretinin demodüle edildiği kısım-Alıcı-Kod Çözücü
 
     N_test = 10000
     test_label = np.random.randint(M, size=N_test)
@@ -78,7 +78,7 @@ for i in rates:
 
     test_data = np.array(test_data)
 
-    SNR_db = np.arange(-5,15,1)
+    SNR_db = np.arange(-5,15,1) # Hata oranının test edileceği işaret-gürültü aralığı
     block_error_rate = [None] * len(SNR_db)
 
     for n in range(len(SNR_db)):
@@ -103,17 +103,6 @@ for i in rates:
 
 
 
-
-# with open('C:/users/osman/Documents/MATLAB/serQ3.pkl', 'rb') as fin :
-#     BLER_8PSK = pickle.load(fin)
-# with open('C:/users/osman/Documents/MATLAB/serQ4.pkl', 'rb') as fin :
-#     BLER_16PSK = pickle.load(fin)
-# with open('C:/users/osman/Documents/MATLAB/serQ5.pkl', 'rb') as fin :
-#     BLER_32PSK = pickle.load(fin)
-#
-# plt.plot(SNR_db,BLER_8PSK,label='Theoric 8-PSK')
-# plt.plot(SNR_db,BLER_16PSK,label='Theoric 16-PSK')
-# plt.plot(SNR_db,BLER_32PSK,label='Theoric 32-PSK')
 
 from scipy import special as sp
 def qfunc(x):
