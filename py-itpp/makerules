@@ -1,0 +1,71 @@
+#------------------------------------------------------------------------
+# Define architecture dependent compiler flags:
+#------------------------------------------------------------------------
+#SIMD_CFLAG := $(shell find_simd_cflag.sh)
+#ARCH_FLAGS := $(SIMD_CFLAG)
+
+#------------------------------------------------------------------------
+# Define aux compiler flags
+#------------------------------------------------------------------------
+
+#ADDITIONAL_COMPILER_FLAGS := $(ADDITIONAL_COMPILER_FLAGS) -DVCL_NAMESPACE=vcl -D_USE_MATH_DEFINES -DUSE_AVX -DPROJECT_NAME=\"$(LIB_BASE_NAME)\" $(MEX_COMPILER_FLAGS)
+
+#FLAGS_COMMON      := -std=c++0x -Wall -Wnon-virtual-dtor -pipe -fPIC
+ifeq ($(FLAGS_FAST_MATH),disable)
+FLAGS_COMMON_MATH :=
+else
+#FLAGS_COMMON_MATH := -fno-math-errno -fno-signed-zeros -fno-trapping-math -fassociative-math -fno-rounding-math -fno-signaling-nans -fcx-limited-range 
+endif
+
+FLAGS_PYTHON       := $(FLAGS_COMMON) $(ARCH_FLAGS) -shared -O3 -std=c++11 -Wall -fPIC $(FLAGS_COMMON_MATH) $(ADDITIONAL_COMPILER_FLAGS) $(USER_FLAGS)
+
+#------------------------------------------------------------------------
+# Define include path for the local library
+#------------------------------------------------------------------------
+
+#LOCAL_INCLUDE_PATH          := -I$(LOCAL_HOME)/include -I.
+
+#------------------------------------------------------------------------
+# Define directories for the local src
+#------------------------------------------------------------------------
+
+LOCAL_SOURCE_DIR           := $(LOCAL_HOME)/src
+# Set LOCAL_SOURCE_SUBDIRS to contain all sub-directories of LOCAL_SOURCE_DIR except '.svn'
+# (only sub-dir names, not full paths):
+LOCAL_SOURCE_SUBDIRS       := $(strip $(filter-out .svn,$(notdir $(patsubst %/,%,$(dir $(wildcard $(LOCAL_SOURCE_DIR)/*/makefile) ) ) ) ) )
+
+#------------------------------------------------------------------------
+# Directories of target libraries
+#------------------------------------------------------------------------
+LOCAL_TARGET_DIR            := $(LOCAL_HOME)/lib/$(LIB_NAME)
+
+#------------------------------------------------------------------------
+# Lib-paths for local libraries:
+#------------------------------------------------------------------------
+LOCAL_LIBPATH               := -L$(LOCAL_TARGET_DIR)
+
+#------------------------------------------------------------------------
+# Lib-paths for local libraries:
+#------------------------------------------------------------------------
+LOCAL_LIB_SHARED            := -l$(LIB_BASE_NAME)
+LOCAL_LIB_PYTHON            := $(LIB_BASE_NAME)
+
+#------------------------------------------------------------------------
+# Define target libraries:
+#------------------------------------------------------------------------
+TARGET_LIB_SHARED          := $(LOCAL_TARGET_DIR)/$(LOCAL_TARGET_SHARED)
+TARGET_LIB_PYTHON          := $(LOCAL_TARGET_DIR)/$(LOCAL_TARGET_PYTHON)
+
+#------------------------------------------------------------------------
+# Libs-files that project depends on
+#------------------------------------------------------------------------
+PLAIN_LIB_PATHS := $(subst -L,,$(LIB_PATH))
+LIB_FILES := $(foreach dir,$(PLAIN_LIB_PATHS),$(wildcard $(dir)/lib*))
+
+#------------------------------------------------------------------------
+# Define include paths:
+#------------------------------------------------------------------------
+INCLUDE_PATH               := $(LOCAL_INCLUDE_PATH) $(INCLUDE_PATH)
+
+INCLUDE_PATH_system        := $(subst -I,-isystem,$(INCLUDE_PATH))
+INCLUDE_PATH_system        := $(subst $(subst -I,-isystem,$(LOCAL_INCLUDE_PATH)),,$(subst -I,-isystem,$(INCLUDE_PATH)))
